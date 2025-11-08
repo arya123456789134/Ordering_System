@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+<link rel="stylesheet" href="assets/css/shared.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<header>
+    <h1>Admin Panel</h1>
+</header>
+
+<div class="container" id="loginSection">
+    <h2>Login</h2>
+    <form id="loginForm">
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+    </form>
+</div>
+
+<div class="container" id="adminSection" style="display:none;">
+    <section class="add-food">
+        <h2>Add Food Item</h2>
+        <form id="foodForm">
+            <input type="text" id="name" placeholder="Food Name" required>
+            <input type="text" id="category" placeholder="Category (e.g., Shake, Snack)" required>
+            
+            <div style="margin: 15px 0;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="hasSizes" style="width: auto; cursor: pointer;">
+                    <span>This item has size options (Small/Large)</span>
+                </label>
+            </div>
+            
+            <div id="singlePriceSection">
+                <input type="number" id="price" placeholder="Price (₱)" min="0.01" step="0.01">
+                <small id="priceError" style="color: #e74c3c; display: none;">Price must be a positive number</small>
+            </div>
+            
+            <div id="sizePriceSection" style="display: none;">
+                <input type="number" id="priceSmall" placeholder="Small Size Price (₱)" min="0.01" step="0.01">
+                <input type="number" id="priceLarge" placeholder="Large Size Price (₱)" min="0.01" step="0.01">
+                <small id="sizePriceError" style="color: #e74c3c; display: none;">Both prices must be positive numbers</small>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600;">Toppings (Optional):</label>
+                <div id="toppingsContainer" style="margin-bottom: 10px;">
+                    <!-- Toppings will be added here dynamically -->
+                </div>
+                <button type="button" id="addToppingBtn" style="padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    + Add Topping
+                </button>
+                <small style="display: block; margin-top: 5px; color: #666;">Add toppings with names and prices (e.g., Cheese, Bacon, etc.)</small>
+            </div>
+            
+            <input type="file" id="imageFile" accept="image/*" required>
+            <button type="submit">Add Food</button>
+        </form>
+    </section>
+
+    <section class="food-list-section">
+        <h2>Food Items</h2>
+        <div id="foodList"></div>
+    </section>
+</div>
+
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

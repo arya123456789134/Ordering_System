@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu QR Code</title>
+<link rel="stylesheet" href="assets/css/qr-code.css">
+</head>
+<body>
+<header>
+    <h1>Scan to Browse Menu</h1>
+</header>
+
+<div class="container">
+    <div id="qrcode"></div>
+    <p>Or click <a href="menu.html">Browse Menu</a></p>
+    
+    <div id="networkInfo" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+        <h3 style="margin-top: 0; color: #2196F3;">Network Information</h3>
+        <div id="networkDetails"></div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+let currentQRCode = null;
+let networkCheckInterval = null;
+
+// Function to update QR code and network info
+function updateQRCode() {
+    fetch('backend/get_server_ip.php')
+        .then(response => response.json())
+        .then(data => {
+            // Clear existing QR code
+            if (currentQRCode) {
+                document.getElementById('qrcode').innerHTML = '';
+            }
+            
+            // Generate new QR code
+            currentQRCode = new QRCode(document.getElementById('qrcode'), {
+                text: data.menuURL,
+                width: 200,
+                height: 200
+            });
+            
+            // Update URL display
+            let urlDisplay = document.querySelector('.url-display');
+            if (!urlDisplay) {
+                urlDisplay = document.createElement('p');
+                urlDisplay.className = 'url-display';
+                urlDisplay.style.marginTop = '20px';
+                urlDisplay.style.fontSize = '14px';
+                urlDisplay.style.color = '#666';
+                document.querySelector('.container').appendChild(urlDisplay);
+            }
+            urlDisplay.innerHTML = `<strong>Menu URL:</strong> <a href="${data.menuURL}" target="_blank">${data.menuURL}</a>`;
+            
+            // Update network information
+            document.getElementById('networkInfo').style.display = 'block';
+            document.getElementById('networkDetails').innerHTML = `
+                <p><strong>Server IP:</strong> ${data.ip}</p>
+                <p><strong>Base URL:</strong> ${data.baseURL}</p>
+                <p><strong>Status:</strong> <span style="color: #4CAF50;">✓ Ready for scanning</span></p>
+                <p><strong>Last Updated:</strong> ${new Date().toLocaleTimeString()}</p>
+                <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                    Make sure your mobile device is connected to the same network as this computer.
+                </p>
+            `;
+        })
+        .catch(error => {
+            console.error('Error getting server IP:', error);
+            // Fallback to current origin
+            if (currentQRCode) {
+                document.getElementById('qrcode').innerHTML = '';
+            }
+            currentQRCode = new QRCode(document.getElementById('qrcode'), {
+                text: window.location.origin + "/menu.html",
+                width: 200,
+                height: 200
+            });
+        });
+}
+
+// Initial QR code generation
+updateQRCode();
+
+// Auto-refresh every 30 seconds to detect network changes
+networkCheckInterval = setInterval(updateQRCode, 30000);
+
+// Add manual refresh button
+const refreshButton = document.createElement('button');
+refreshButton.innerHTML = '🔄 Refresh Network';
+refreshButton.style.marginTop = '10px';
+refreshButton.style.padding = '8px 16px';
+refreshButton.style.backgroundColor = '#2196F3';
+refreshButton.style.color = 'white';
+refreshButton.style.border = 'none';
+refreshButton.style.borderRadius = '4px';
+refreshButton.style.cursor = 'pointer';
+refreshButton.onclick = updateQRCode;
+document.querySelector('.container').appendChild(refreshButton);
+
+// Clean up interval when page unloads
+window.addEventListener('beforeunload', function() {
+    if (networkCheckInterval) {
+        clearInterval(networkCheckInterval);
+    }
+});
+</script>
+</body>
+</html>

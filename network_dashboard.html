@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Monitoring Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background: #4CAF50; }
+        .status-offline { background: #F44336; }
+        .status-unknown { background: #FF9800; }
+        .device-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .device-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .qr-section {
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+        .qr-code {
+            display: inline-block;
+            margin: 20px 0;
+        }
+        .refresh-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .refresh-btn:hover {
+            background: #1976D2;
+        }
+        .auto-refresh {
+            background: #4CAF50;
+        }
+        .auto-refresh.active {
+            background: #F44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌐 Network Monitoring Dashboard</h1>
+    
+    <div class="dashboard">
+        <div class="card">
+            <h2>📡 Server Status</h2>
+            <div id="serverStatus">
+                <p><span class="status-indicator status-unknown"></span>Loading...</p>
+                <p><strong>Server IP:</strong> <span id="serverIP">-</span></p>
+                <p><strong>Base URL:</strong> <span id="baseURL">-</span></p>
+                <p><strong>Menu URL:</strong> <span id="menuURL">-</span></p>
+                <p><strong>Last Updated:</strong> <span id="lastUpdated">-</span></p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🔗 Connected Devices</h2>
+            <div id="deviceCount">
+                <p><strong>Total Devices:</strong> <span id="deviceTotal">0</span></p>
+            </div>
+            <div class="device-list" id="deviceList">
+                <p>Loading devices...</p>
+            </div>
+        </div>
+        
+        <div class="card qr-section">
+            <h2>📱 QR Code Menu</h2>
+            <div id="qrcode" class="qr-code"></div>
+            <p><strong>Scan this QR code to access the menu on mobile devices</strong></p>
+            <div id="qrInfo">
+                <p><strong>Menu URL:</strong> <span id="qrURL">-</span></p>
+            </div>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 20px;">
+        <button class="refresh-btn" onclick="refreshNetwork()">🔄 Refresh Network</button>
+        <button class="refresh-btn auto-refresh" id="autoRefreshBtn" onclick="toggleAutoRefresh()">⏰ Auto Refresh: OFF</button>
+        <button class="refresh-btn" onclick="window.open('qr.html', '_blank')">📱 Open QR Page</button>
+        <button class="refresh-btn" onclick="window.open('menu.html', '_blank')">🍽️ Open Menu</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        let currentQRCode = null;
+        let autoRefreshInterval = null;
+        let isAutoRefresh = false;
+        
+        function updateDashboard() {
+            fetch('backend/network_monitor.php')
+                .then(response => response.json())
+                .then(data => {
+                    // Update server status
+                    document.getElementById('serverIP').textContent = data.server_ip;
+                    document.getElementById('baseURL').textContent = data.baseURL;
+                    document.getElementById('menuURL').textContent = data.menuURL;
+                    document.getElementById('lastUpdated').textContent = new Date(data.timestamp * 1000).toLocaleString();
+                    
+                    // Update device count
+                    document.getElementById('deviceTotal').textContent = data.devices.length;
+                    
+                    // Update device list
+                    const deviceList = document.getElementById('deviceList');
+                    if (data.devices.length === 0) {
+                        deviceList.innerHTML = '<p>No devices detected</p>';
+                    } else {
+                        deviceList.innerHTML = data.devices.map(device => `
+                            <div class="device-item">
+                                <div>
+                                    <strong>${device.ip}</strong><br>
+                                    <small>MAC: ${device.mac}</small>
+                                </div>
+                                <div>
+                                    <span class="status-indicator status-online"></span>
+                                    <small>${new Date(device.timestamp * 1000).toLocaleTimeString()}</small>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    // Update QR code
+                    if (currentQRCode) {
+                        document.getElementById('qrcode').innerHTML = '';
+                    }
+                    currentQRCode = new QRCode(document.getElementById('qrcode'), {
+                        text: data.menuURL,
+                        width: 200,
+                        height: 200
+                    });
+                    
+                    document.getElementById('qrURL').textContent = data.menuURL;
+                    
+                    // Update server status indicator
+                    const statusIndicator = document.querySelector('#serverStatus .status-indicator');
+                    statusIndicator.className = 'status-indicator status-online';
+                    
+                    // Show network change notification
+                    if (data.network_changed) {
+                        showNotification('Network configuration changed! QR code updated.', 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating dashboard:', error);
+                    document.querySelector('#serverStatus .status-indicator').className = 'status-indicator status-offline';
+                    showNotification('Error connecting to network monitor', 'error');
+                });
+        }
+        
+        function refreshNetwork() {
+            updateDashboard();
+            showNotification('Network information refreshed', 'success');
+        }
+        
+        function toggleAutoRefresh() {
+            const btn = document.getElementById('autoRefreshBtn');
+            if (isAutoRefresh) {
+                clearInterval(autoRefreshInterval);
+                btn.textContent = '⏰ Auto Refresh: OFF';
+                btn.classList.remove('active');
+                isAutoRefresh = false;
+            } else {
+                autoRefreshInterval = setInterval(updateDashboard, 10000); // Every 10 seconds
+                btn.textContent = '⏰ Auto Refresh: ON';
+                btn.classList.add('active');
+                isAutoRefresh = true;
+            }
+        }
+        
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 5px;
+                color: white;
+                font-weight: bold;
+                z-index: 1000;
+                background: ${type === 'error' ? '#F44336' : type === 'success' ? '#4CAF50' : '#2196F3'};
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+        
+        // Initial load
+        updateDashboard();
+        
+        // Auto-refresh every 30 seconds by default
+        setInterval(updateDashboard, 30000);
+    </script>
+</body>
+</html>

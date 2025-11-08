@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Ordering System</title>
+    <link rel="stylesheet" href="assets/css/shared.css">
+    <link rel="stylesheet" href="assets/css/user.css">
+    <style>
+        .welcome-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .welcome-container h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .option-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+        .option-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        .option-card h2 {
+            color: #e74c3c;
+            margin-bottom: 15px;
+        }
+        .option-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Food Ordering System</h1>
+    </header>
+
+    <div class="welcome-container">
+        <h1>Welcome to Our Food Ordering System</h1>
+        <p>Choose your role to get started:</p>
+        
+        <div class="options-grid">
+            <a href="menu.html" class="option-card">
+                <h2>🍽️ Customer Menu</h2>
+                <p>Browse our delicious menu, add items to cart, and place your order. Track your orders and enjoy our food!</p>
+            </a>
+            
+            <a href="admin.html" class="option-card">
+                <h2>👨‍💼 Admin Panel</h2>
+                <p>Manage food items, view customer orders, and handle the business side of the ordering system.</p>
+            </a>
+            
+            <a href="qr.html" class="option-card">
+                <h2>📱 QR Code Menu</h2>
+                <p>Scan the QR code to quickly access our menu on your mobile device. Perfect for table service!</p>
+            </a>
+        </div>
+
+    </div>
+
+</body>
+</html>
