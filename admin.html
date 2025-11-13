@@ -23,42 +23,110 @@
 
 <div class="container" id="adminSection" style="display:none;">
     <section class="add-food">
-        <h2>Add Food Item</h2>
-        <form id="foodForm">
-            <input type="text" id="name" placeholder="Food Name" required>
-            <input type="text" id="category" placeholder="Category (e.g., Shake, Snack)" required>
+        <div class="add-food-header">
+            <h2>➕ Add New Food Item</h2>
+            <p class="form-subtitle">Fill in the details below to add a new item to your menu</p>
+        </div>
+        <form id="foodForm" class="modern-form">
+            <div class="form-group">
+                <label for="name" class="form-label">
+                    <span class="label-icon">🍽️</span>
+                    Food Name
+                </label>
+                <input type="text" id="name" class="form-input" placeholder="Enter food name (e.g., Classic Burger)" required>
+            </div>
             
-            <div style="margin: 15px 0;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" id="hasSizes" style="width: auto; cursor: pointer;">
-                    <span>This item has size options (Small/Large)</span>
+            <div class="form-group">
+                <label for="category" class="form-label">
+                    <span class="label-icon">📂</span>
+                    Category
+                </label>
+                <input type="text" id="category" class="form-input" placeholder="Category (e.g., Shake, Snack, Main Course)" required>
+            </div>
+            
+            <div class="form-group checkbox-group">
+                <label for="hasSizes" class="checkbox-label">
+                    <input type="checkbox" id="hasSizes" class="custom-checkbox">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">This item has size options (Small/Large)</span>
                 </label>
             </div>
             
-            <div id="singlePriceSection">
-                <input type="number" id="price" placeholder="Price (₱)" min="0.01" step="0.01">
-                <small id="priceError" style="color: #e74c3c; display: none;">Price must be a positive number</small>
-            </div>
-            
-            <div id="sizePriceSection" style="display: none;">
-                <input type="number" id="priceSmall" placeholder="Small Size Price (₱)" min="0.01" step="0.01">
-                <input type="number" id="priceLarge" placeholder="Large Size Price (₱)" min="0.01" step="0.01">
-                <small id="sizePriceError" style="color: #e74c3c; display: none;">Both prices must be positive numbers</small>
-            </div>
-            
-            <div style="margin: 15px 0;">
-                <label style="display: block; margin-bottom: 10px; font-weight: 600;">Toppings (Optional):</label>
-                <div id="toppingsContainer" style="margin-bottom: 10px;">
-                    <!-- Toppings will be added here dynamically -->
+            <div id="singlePriceSection" class="price-section">
+                <div class="form-group">
+                    <label for="price" class="form-label">
+                        <span class="label-icon">💰</span>
+                        Price
+                    </label>
+                    <div class="input-with-icon">
+                        <span class="currency-icon">₱</span>
+                        <input type="number" id="price" class="form-input price-input" placeholder="0.00" min="0.01" step="0.01" required>
+                    </div>
+                    <small id="priceError" class="error-message">Price must be a positive number</small>
                 </div>
-                <button type="button" id="addToppingBtn" style="padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    + Add Topping
-                </button>
-                <small style="display: block; margin-top: 5px; color: #666;">Add toppings with names and prices (e.g., Cheese, Bacon, etc.)</small>
             </div>
             
-            <input type="file" id="imageFile" accept="image/*" required>
-            <button type="submit">Add Food</button>
+            <div id="sizePriceSection" class="price-section size-prices" style="display: none;">
+                <div class="size-price-grid">
+                    <div class="form-group">
+                        <label for="priceSmall" class="form-label">
+                            <span class="label-icon">📏</span>
+                            Small Size Price
+                        </label>
+                        <div class="input-with-icon">
+                            <span class="currency-icon">₱</span>
+                            <input type="number" id="priceSmall" class="form-input price-input" placeholder="0.00" min="0.01" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="priceLarge" class="form-label">
+                            <span class="label-icon">📏</span>
+                            Large Size Price
+                        </label>
+                        <div class="input-with-icon">
+                            <span class="currency-icon">₱</span>
+                            <input type="number" id="priceLarge" class="form-input price-input" placeholder="0.00" min="0.01" step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <small id="sizePriceError" class="error-message">Both prices must be positive numbers</small>
+            </div>
+            
+            <div class="form-group toppings-group">
+                <label class="form-label">
+                    <span class="label-icon">🎯</span>
+                    Toppings <span class="optional-badge">(Optional)</span>
+                </label>
+                <div id="toppingsContainer" class="toppings-container">
+                </div>
+                <button type="button" id="addToppingBtn" class="btn-add-topping">
+                    <span class="btn-icon">+</span>
+                    Add Topping
+                </button>
+                <small class="form-hint">Add toppings with names and prices (e.g., Cheese, Bacon, etc.)</small>
+            </div>
+            
+            <div class="form-group file-upload-group">
+                <label for="imageFile" class="form-label">
+                    <span class="label-icon">📷</span>
+                    Food Image
+                </label>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="imageFile" class="file-input" accept="image/*" required>
+                    <label for="imageFile" class="file-upload-label">
+                        <span class="file-upload-icon">📁</span>
+                        <span class="file-upload-text">Choose an image file</span>
+                        <span class="file-upload-hint">PNG, JPG, or GIF up to 5MB</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">
+                    <span class="btn-icon">✓</span>
+                    Add Food Item
+                </button>
+            </div>
         </form>
     </section>
 

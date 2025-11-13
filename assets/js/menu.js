@@ -58,6 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     ordersPanel.style.display = 'none';
 
     document.getElementById('viewCartBtn').addEventListener('click', () => {
+        // Announce cart view with speech
+        if (typeof speechService !== 'undefined' && speechService.isEnabled) {
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const cartStatus = totalItems > 0 ? `with ${totalItems} item${totalItems !== 1 ? 's' : ''}` : 'which is empty';
+            const message = `View cart button clicked. Viewing cart ${cartStatus}`;
+            speechService.speak(message, { rate: 1.0 });
+        }
 
         ordersPanel.classList.remove('active');
         ordersPanel.style.display = 'none';
@@ -65,7 +72,30 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCart(); 
     });
 
-    document.getElementById('viewOrdersBtn').addEventListener('click', () => {
+    document.getElementById('viewOrdersBtn').addEventListener('click', async () => {
+        // Announce orders view with speech
+        if (typeof speechService !== 'undefined' && speechService.isEnabled) {
+            try {
+                const response = await fetch('backend/orders.php');
+                const orders = await response.json();
+                const orderCount = orders.length;
+                const readyOrders = orders.filter(order => order.status === 'ready').length;
+                const completedOrders = orders.filter(order => order.status === 'completed').length;
+                
+                let orderStatus = orderCount > 0 ? `You have ${orderCount} order${orderCount !== 1 ? 's' : ''}` : 'No orders found';
+                
+                // Add receipt availability information
+                if (readyOrders > 0 || completedOrders > 0) {
+                    const receiptCount = readyOrders + completedOrders;
+                    orderStatus += `. ${receiptCount} receipt${receiptCount !== 1 ? 's' : ''} available for viewing`;
+                }
+                
+                const message = `View orders button clicked. ${orderStatus}`;
+                speechService.speak(message, { rate: 1.0 });
+            } catch (error) {
+                speechService.speak('View orders button clicked. Viewing your orders', { rate: 1.0 });
+            }
+        }
 
         cartPanel.classList.remove('active');
         cartPanel.style.display = 'none';
@@ -133,8 +163,21 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('backend/orders.php');
             const orders = await response.json();
-            ordersBadge.textContent = orders.length;
-            ordersBadge.style.display = orders.length > 0 ? 'inline' : 'none';
+            const readyOrders = orders.filter(order => order.status === 'ready').length;
+            const totalOrders = orders.length;
+            
+            // Show ready orders count if any, otherwise show total orders
+            if (readyOrders > 0) {
+                ordersBadge.textContent = readyOrders;
+                ordersBadge.style.display = 'inline';
+                ordersBadge.style.background = '#4CAF50'; // Green for ready orders
+                ordersBadge.title = `${readyOrders} order${readyOrders !== 1 ? 's' : ''} ready with receipt${readyOrders !== 1 ? 's' : ''} available`;
+            } else {
+                ordersBadge.textContent = totalOrders;
+                ordersBadge.style.display = totalOrders > 0 ? 'inline' : 'none';
+                ordersBadge.style.background = '#2196F3'; // Blue for regular orders
+                ordersBadge.title = `${totalOrders} order${totalOrders !== 1 ? 's' : ''}`;
+            }
         } catch (error) {
             console.error('Error updating orders badge:', error);
             ordersBadge.style.display = 'none';
@@ -477,10 +520,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const orderItems = cart.map(item => {
                 const food = foods.find(f => f.id === item.food_id || f.name === item.name);
+                const foodId = food ? food.id : item.food_id;
+                
+                if (!foodId) {
+                    throw new Error('Food ID not found for item: ' + (item.name || 'Unknown'));
+                }
+                
                 return {
-                    food_id: food ? food.id : item.food_id,
-                    quantity: item.quantity,
-                    price: item.price,
+                    food_id: foodId,
+                    quantity: item.quantity || 1,
+                    price: item.price || 0,
                     size: item.size || null,
                     toppings: item.selectedToppings ? JSON.stringify(item.selectedToppings) : null
                 };
@@ -498,6 +547,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to place order');
+            }
             
             if (result.success) {
 
@@ -522,11 +575,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateCartBadge();
                 updateOrdersBadge();
             } else {
-                alert("Failed to place order");
+                alert("Failed to place order: " + (result.error || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error placing order:', error);
-            alert("Failed to place order");
+            alert("Failed to place order: " + error.message);
         }
     }
 
@@ -727,6 +780,29 @@ document.addEventListener('DOMContentLoaded', () => {
             orders.forEach(order => {
                 const divTrack = document.createElement('div');
                 divTrack.className = 'past-order-tracking';
+                
+                // Add receipt button for ready and completed orders
+                let receiptButton = '';
+                if (order.status === 'ready' || order.status === 'completed') {
+                    receiptButton = `
+                        <div style="margin-top: 15px; text-align: center;">
+                            <button onclick="viewReceipt(${order.id})" style="
+                                background: #4CAF50; 
+                                color: white; 
+                                border: none; 
+                                padding: 10px 20px; 
+                                border-radius: 5px; 
+                                cursor: pointer; 
+                                font-weight: bold;
+                                font-size: 14px;
+                                transition: background 0.3s ease;
+                            " onmouseover="this.style.background='#45a049'" onmouseout="this.style.background='#4CAF50'">
+                                📄 View Detailed Receipt
+                            </button>
+                        </div>
+                    `;
+                }
+                
                 divTrack.innerHTML = `
                     <h4>Tracking: ${order.tracking_number}</h4>
                     <p><strong>Customer:</strong> ${order.customer_name || 'Anonymous'}</p>
@@ -734,8 +810,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p><strong>Items:</strong> ${order.items || 'N/A'}</p>
                     <p><strong>Status:</strong> 
                         <span class="status-badge ${order.status === "pending" ? "status-pending" : order.status === "ready" ? "status-ready" : "status-completed"}">${order.status}</span>
+                        ${order.status === 'ready' ? '<span style="color: #4CAF50; font-weight: bold; margin-left: 10px;">✓ Receipt Available!</span>' : ''}
                     </p>
                     <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+                    ${receiptButton}
                 `;
                 pastOrdersDiv.appendChild(divTrack);
             });
@@ -755,4 +833,15 @@ function togglePanel(id) {
         panel.classList.add('active');
         panel.style.display = 'block';
     }
+}
+
+// Function to view receipt for an order
+window.viewReceipt = function(orderId) {
+    // Announce receipt viewing with speech
+    if (typeof speechService !== 'undefined' && speechService.isEnabled) {
+        speechService.speak('Opening detailed receipt', { rate: 1.0 });
+    }
+    
+    // Open receipt in new tab
+    window.open(`backend/generate_receipt.php?order_id=${orderId}`, '_blank');
 }

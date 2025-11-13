@@ -81,7 +81,7 @@ try {
         }
     } else {
         $itemsStmt = $pdo->prepare("
-            SELECT oi.*, f.name as food_name
+            SELECT oi.*, f.name as food_name, oi.size, oi.toppings
             FROM order_items oi
             JOIN foods f ON oi.food_id = f.id
             WHERE oi.order_id = ?
@@ -127,18 +127,43 @@ if ($use_tcpdf && class_exists('TCPDF')) {
     $pdf->Ln(5);
     
     $pdf->SetFont('helvetica', 'B', 12);
-    $pdf->Cell(100, 8, 'Item', 1, 0, 'L');
-    $pdf->Cell(30, 8, 'Quantity', 1, 0, 'C');
-    $pdf->Cell(30, 8, 'Price', 1, 0, 'R');
-    $pdf->Cell(30, 8, 'Total', 1, 1, 'R');
+    $pdf->Cell(90, 10, 'Item', 1, 0, 'L');
+    $pdf->Cell(25, 10, 'Qty', 1, 0, 'C');
+    $pdf->Cell(35, 10, 'Price', 1, 0, 'R');
+    $pdf->Cell(40, 10, 'Total', 1, 1, 'R');
     
     $pdf->SetFont('helvetica', '', 10);
     foreach ($orderItems as $item) {
         $itemTotal = $item['quantity'] * $item['price'];
-        $pdf->Cell(100, 8, $item['food_name'], 1, 0, 'L');
-        $pdf->Cell(30, 8, $item['quantity'], 1, 0, 'C');
-        $pdf->Cell(30, 8, '₱' . number_format($item['price'], 2), 1, 0, 'R');
-        $pdf->Cell(30, 8, '₱' . number_format($itemTotal, 2), 1, 1, 'R');
+        
+        // Build item name with size and toppings for PDF
+        $itemName = $item['food_name'];
+        
+        // Add size if available
+        if (!empty($item['size'])) {
+            $itemName .= ' (' . ucfirst($item['size']) . ')';
+        }
+        
+        // Add toppings if available
+        if (!empty($item['toppings'])) {
+            $toppings = json_decode($item['toppings'], true);
+            if (is_array($toppings) && count($toppings) > 0) {
+                $toppingNames = [];
+                foreach ($toppings as $topping) {
+                    if (is_array($topping) && isset($topping['name'])) {
+                        $toppingNames[] = $topping['name'];
+                    }
+                }
+                if (count($toppingNames) > 0) {
+                    $itemName .= ' +' . implode(', ', $toppingNames);
+                }
+            }
+        }
+        
+        $pdf->Cell(90, 10, $itemName, 1, 0, 'L');
+        $pdf->Cell(25, 10, $item['quantity'], 1, 0, 'C');
+        $pdf->Cell(35, 10, '₱' . number_format($item['price'], 2), 1, 0, 'R');
+        $pdf->Cell(40, 10, '₱' . number_format($itemTotal, 2), 1, 1, 'R');
     }
     
     $pdf->Ln(5);
@@ -174,22 +199,23 @@ if ($use_tcpdf && class_exists('TCPDF')) {
                 padding: 20px;
                 max-width: 800px;
                 margin: 0 auto;
-                background:
+                background: #f5f5f5;
             }
             .receipt-container {
                 background: white;
                 padding: 30px;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border-radius: 8px;
             }
             .receipt-header {
                 text-align: center;
                 margin-bottom: 30px;
-                border-bottom: 2px solid
+                border-bottom: 2px solid #333;
                 padding-bottom: 20px;
             }
             .receipt-header h1 {
                 font-size: 28px;
-                color:
+                color: #333;
                 margin-bottom: 10px;
             }
             .receipt-info {
@@ -198,10 +224,10 @@ if ($use_tcpdf && class_exists('TCPDF')) {
             .receipt-info p {
                 margin: 8px 0;
                 font-size: 14px;
-                color:
+                color: #555;
             }
             .receipt-info strong {
-                color:
+                color: #333;
                 width: 150px;
                 display: inline-block;
             }
@@ -209,26 +235,90 @@ if ($use_tcpdf && class_exists('TCPDF')) {
                 width: 100%;
                 border-collapse: collapse;
                 margin: 20px 0;
+                border: 1px solid #ddd;
+                table-layout: fixed;
             }
             .items-table th {
-                background:
+                background: #333;
                 color: white;
-                padding: 12px;
+                padding: 15px 12px;
                 text-align: left;
                 font-weight: bold;
+                border: 1px solid #333;
+                font-size: 14px;
             }
-            .items-table td {
-                padding: 10px 12px;
-                border-bottom: 1px solid
+            .items-table th:nth-child(1) {
+                width: 45%;
+                text-align: left;
             }
-            .items-table tr:last-child td {
-                border-bottom: 2px solid
+            .items-table th:nth-child(2) {
+                width: 12%;
+                text-align: center;
             }
-            .text-right {
+            .items-table th:nth-child(3) {
+                width: 21.5%;
                 text-align: right;
             }
-            .text-center {
+            .items-table th:nth-child(4) {
+                width: 21.5%;
+                text-align: right;
+            }
+            .items-table td {
+                padding: 15px 12px;
+                border: 1px solid #ddd;
+                vertical-align: middle;
+                word-wrap: break-word;
+                line-height: 1.4;
+            }
+            .items-table td:nth-child(1) {
+                text-align: left;
+                vertical-align: top;
+            }
+            .items-table td:nth-child(2) {
                 text-align: center;
+                vertical-align: middle;
+                font-weight: 600;
+            }
+            .items-table td:nth-child(3) {
+                text-align: right;
+                vertical-align: middle;
+                font-weight: 600;
+            }
+            .items-table td:nth-child(4) {
+                text-align: right;
+                vertical-align: middle;
+                font-weight: 700;
+                color: #333;
+            }
+            .items-table tbody tr:nth-child(even) {
+                background-color: #f8f9fa;
+            }
+            .items-table tbody tr:nth-child(odd) {
+                background-color: #ffffff;
+            }
+            .items-table tbody tr:last-child td {
+                border-bottom: 2px solid #333;
+                font-weight: 600;
+            }
+            .items-table tbody tr:hover {
+                background-color: #e3f2fd;
+            }
+            .items-table td small {
+                display: block;
+                margin-top: 4px;
+                line-height: 1.3;
+                color: #666;
+                font-style: italic;
+            }
+            .table-wrapper {
+                overflow-x: visible;
+                width: 100%;
+            }
+            .text-right {
+                text-align: right !important;
+            }
+            .text-center {
+                text-align: center !important;
             }
             .total-section {
                 margin-top: 20px;
@@ -237,17 +327,203 @@ if ($use_tcpdf && class_exists('TCPDF')) {
             .total-amount {
                 font-size: 24px;
                 font-weight: bold;
-                color:
+                color: #333;
                 margin-top: 10px;
             }
             .footer {
                 text-align: center;
                 margin-top: 30px;
                 padding-top: 20px;
-                border-top: 1px solid
-                color:
+                border-top: 1px solid #ddd;
+                color: #666;
                 font-style: italic;
             }
+            /* Mobile Responsive Styles */
+            @media (max-width: 768px) {
+                body {
+                    padding: 10px;
+                    font-size: 14px;
+                }
+                .receipt-container {
+                    padding: 20px 15px;
+                    border-radius: 0;
+                    margin: 0;
+                }
+                .receipt-header h1 {
+                    font-size: 22px;
+                }
+                .receipt-info {
+                    margin-bottom: 15px;
+                }
+                .receipt-info p {
+                    font-size: 13px;
+                    margin: 6px 0;
+                }
+                .receipt-info strong {
+                    width: 120px;
+                    font-size: 13px;
+                }
+                
+                /* Mobile Table Styles */
+                .items-table {
+                    font-size: 12px;
+                    margin: 15px 0;
+                }
+                .items-table th {
+                    padding: 10px 6px;
+                    font-size: 12px;
+                }
+                .items-table th:nth-child(1) {
+                    width: 40%;
+                }
+                .items-table th:nth-child(2) {
+                    width: 15%;
+                }
+                .items-table th:nth-child(3) {
+                    width: 22.5%;
+                }
+                .items-table th:nth-child(4) {
+                    width: 22.5%;
+                }
+                .items-table td {
+                    padding: 10px 6px;
+                    font-size: 12px;
+                    line-height: 1.3;
+                }
+                .items-table td small {
+                    font-size: 10px;
+                    margin-top: 2px;
+                }
+                
+                .total-section {
+                    margin-top: 15px;
+                }
+                .total-section p {
+                    font-size: 16px;
+                }
+                .total-amount {
+                    font-size: 20px;
+                }
+                .print-btn {
+                    width: 100%;
+                    padding: 15px;
+                    font-size: 16px;
+                    margin: 15px 0;
+                }
+            }
+            
+            /* Extra Small Mobile Devices */
+            @media (max-width: 480px) {
+                .receipt-container {
+                    padding: 15px 10px;
+                }
+                .receipt-header h1 {
+                    font-size: 20px;
+                }
+                
+                /* Table wrapper for horizontal scroll if needed */
+                .table-wrapper {
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    margin: 15px -10px;
+                    padding: 0 10px;
+                }
+                
+                .items-table {
+                    font-size: 11px;
+                    min-width: 320px; /* Minimum width to prevent crushing */
+                }
+                .items-table th {
+                    padding: 8px 4px;
+                    font-size: 11px;
+                    white-space: nowrap;
+                }
+                .items-table th:nth-child(1) {
+                    width: 35%;
+                    min-width: 120px;
+                }
+                .items-table th:nth-child(2) {
+                    width: 18%;
+                    min-width: 50px;
+                }
+                .items-table th:nth-child(3) {
+                    width: 23.5%;
+                    min-width: 70px;
+                }
+                .items-table th:nth-child(4) {
+                    width: 23.5%;
+                    min-width: 80px;
+                }
+                .items-table td {
+                    padding: 8px 4px;
+                    font-size: 11px;
+                }
+                .items-table td:nth-child(1) {
+                    min-width: 120px;
+                }
+                .items-table td:nth-child(2) {
+                    min-width: 50px;
+                }
+                .items-table td:nth-child(3) {
+                    min-width: 70px;
+                }
+                .items-table td:nth-child(4) {
+                    min-width: 80px;
+                }
+                .items-table td small {
+                    font-size: 9px;
+                    white-space: normal;
+                }
+                .receipt-info strong {
+                    width: 100px;
+                    font-size: 12px;
+                }
+                .total-amount {
+                    font-size: 18px;
+                }
+            }
+            
+            /* Landscape Mobile Orientation */
+            @media (max-width: 768px) and (orientation: landscape) {
+                .items-table th:nth-child(1) {
+                    width: 45%;
+                }
+                .items-table th:nth-child(2) {
+                    width: 12%;
+                }
+                .items-table th:nth-child(3) {
+                    width: 21.5%;
+                }
+                .items-table th:nth-child(4) {
+                    width: 21.5%;
+                }
+                .receipt-container {
+                    padding: 15px;
+                }
+            }
+            
+            /* Touch Device Optimizations */
+            @media (hover: none) and (pointer: coarse) {
+                .print-btn {
+                    min-height: 48px;
+                    touch-action: manipulation;
+                }
+                .items-table {
+                    -webkit-overflow-scrolling: touch;
+                }
+            }
+            
+            /* High DPI Displays */
+            @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+                .items-table {
+                    border-width: 0.5px;
+                }
+                .items-table th,
+                .items-table td {
+                    border-width: 0.5px;
+                }
+            }
+            
             @media print {
                 body {
                     background: white;
@@ -262,7 +538,7 @@ if ($use_tcpdf && class_exists('TCPDF')) {
                 }
             }
             .print-btn {
-                background:
+                background: #2196F3;
                 color: white;
                 border: none;
                 padding: 12px 24px;
@@ -272,7 +548,7 @@ if ($use_tcpdf && class_exists('TCPDF')) {
                 margin: 20px 0;
             }
             .print-btn:hover {
-                background:
+                background: #1976D2;
             }
         </style>
     </head>
@@ -289,28 +565,54 @@ if ($use_tcpdf && class_exists('TCPDF')) {
                 <p><strong>Status:</strong> <?php echo strtoupper($order['status']); ?></p>
             </div>
             
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th class="text-center">Quantity</th>
-                        <th class="text-right">Price</th>
-                        <th class="text-right">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($orderItems as $item): 
-                        $itemTotal = $item['quantity'] * $item['price'];
-                    ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($item['food_name']); ?></td>
-                        <td class="text-center"><?php echo $item['quantity']; ?></td>
-                        <td class="text-right">₱<?php echo number_format($item['price'], 2); ?></td>
-                        <td class="text-right">₱<?php echo number_format($itemTotal, 2); ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($orderItems as $item): 
+                            $itemTotal = $item['quantity'] * $item['price'];
+                            
+                            // Build item name with size and toppings
+                            $itemName = htmlspecialchars($item['food_name']);
+                            
+                            // Add size if available
+                            if (!empty($item['size'])) {
+                                $itemName .= ' (' . ucfirst($item['size']) . ')';
+                            }
+                            
+                            // Add toppings if available
+                            if (!empty($item['toppings'])) {
+                                $toppings = json_decode($item['toppings'], true);
+                                if (is_array($toppings) && count($toppings) > 0) {
+                                    $toppingNames = [];
+                                    foreach ($toppings as $topping) {
+                                        if (is_array($topping) && isset($topping['name'])) {
+                                            $toppingNames[] = $topping['name'];
+                                        }
+                                    }
+                                    if (count($toppingNames) > 0) {
+                                        $itemName .= '<br><small style="color: #666; font-style: italic; font-size: 12px; margin-top: 4px; display: block;">+ ' . implode(', ', $toppingNames) . '</small>';
+                                    }
+                                }
+                            }
+                        ?>
+                        <tr>
+                            <td><?php echo $itemName; ?></td>
+                            <td><?php echo $item['quantity']; ?></td>
+                            <td>₱<?php echo number_format($item['price'], 2); ?></td>
+                            <td>₱<?php echo number_format($itemTotal, 2); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             
             <div class="total-section">
                 <p style="font-size: 18px; margin-bottom: 5px;"><strong>TOTAL AMOUNT:</strong></p>

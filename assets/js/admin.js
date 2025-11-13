@@ -148,11 +148,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = parseFloat(this.value);
         if (this.value && (isNaN(price) || price <= 0)) {
             priceError.style.display = 'block';
+            priceError.classList.add('show');
             priceError.textContent = price < 0 ? 'Price cannot be negative' : 'Price must be a positive number';
             this.style.borderColor = '#e74c3c';
         } else {
             priceError.style.display = 'none';
-            this.style.borderColor = '#ddd';
+            priceError.classList.remove('show');
+            this.style.borderColor = '';
         }
     });
     
@@ -163,24 +165,27 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (priceSmallInput.value && (isNaN(priceSmall) || priceSmall <= 0)) {
             sizePriceError.style.display = 'block';
+            sizePriceError.classList.add('show');
             sizePriceError.textContent = 'Small price must be a positive number';
             priceSmallInput.style.borderColor = '#e74c3c';
             isValid = false;
         } else {
-            priceSmallInput.style.borderColor = '#ddd';
+            priceSmallInput.style.borderColor = '';
         }
         
         if (priceLargeInput.value && (isNaN(priceLarge) || priceLarge <= 0)) {
             sizePriceError.style.display = 'block';
+            sizePriceError.classList.add('show');
             sizePriceError.textContent = 'Large price must be a positive number';
             priceLargeInput.style.borderColor = '#e74c3c';
             isValid = false;
         } else {
-            priceLargeInput.style.borderColor = '#ddd';
+            priceLargeInput.style.borderColor = '';
         }
         
         if (isValid && priceSmallInput.value && priceLargeInput.value) {
             sizePriceError.style.display = 'none';
+            sizePriceError.classList.remove('show');
         }
         
         return isValid;
@@ -196,11 +201,13 @@ document.addEventListener('DOMContentLoaded', () => {
     addToppingBtn.addEventListener('click', function() {
         const toppingDiv = document.createElement('div');
         toppingDiv.className = 'topping-item';
-        toppingDiv.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 5px;';
         toppingDiv.innerHTML = `
-            <input type="text" class="topping-name" placeholder="Topping Name (e.g., Cheese)" style="flex: 2; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            <input type="number" class="topping-price" placeholder="Price (₱)" min="0" step="0.01" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            <button type="button" class="remove-topping-btn" style="padding: 8px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove</button>
+            <input type="text" class="topping-name" placeholder="Topping Name (e.g., Cheese)">
+            <div class="input-with-icon" style="flex: 1;">
+                <span class="currency-icon">₱</span>
+                <input type="number" class="topping-price" placeholder="0.00" min="0" step="0.01" style="padding-left: 40px;">
+            </div>
+            <button type="button" class="remove-topping-btn">✕ Remove</button>
         `;
         
         toppingDiv.querySelector('.remove-topping-btn').addEventListener('click', function() {
@@ -210,6 +217,26 @@ document.addEventListener('DOMContentLoaded', () => {
         toppingsContainer.appendChild(toppingDiv);
         toppingCount++;
     });
+    
+    const imageFileInput = document.getElementById('imageFile');
+    const fileUploadText = document.querySelector('.file-upload-text');
+    const fileUploadHint = document.querySelector('.file-upload-hint');
+    
+    if (imageFileInput && fileUploadText) {
+        imageFileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                const fileName = this.files[0].name;
+                const fileSize = (this.files[0].size / 1024 / 1024).toFixed(2);
+                fileUploadText.textContent = fileName;
+                fileUploadHint.textContent = `Size: ${fileSize} MB`;
+                fileUploadText.style.color = '#27ae60';
+            } else {
+                fileUploadText.textContent = 'Choose an image file';
+                fileUploadHint.textContent = 'PNG, JPG, or GIF up to 5MB';
+                fileUploadText.style.color = '#2196F3';
+            }
+        });
+    }
     
     function getToppings() {
         const toppings = [];
@@ -227,6 +254,42 @@ document.addEventListener('DOMContentLoaded', () => {
         return toppings.length > 0 ? JSON.stringify(toppings) : null;
     }
 
+    function compressImage(file, maxWidth, quality) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = (height / width) * maxWidth;
+                        width = maxWidth;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                    resolve(compressedBase64);
+                };
+                img.onerror = function() {
+                    reject(new Error('Failed to load image'));
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() {
+                reject(new Error('Failed to read file'));
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     foodForm.addEventListener('submit', async e => {
         e.preventDefault();
         const name = document.getElementById('name').value.trim();
@@ -237,6 +300,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!imageFile) { 
             alert("Please select an image!"); 
             return; 
+        }
+        
+        const maxFileSize = 10 * 1024 * 1024;
+        if (imageFile.size > maxFileSize) {
+            if (!confirm(`Warning: The selected image is ${(imageFile.size / 1024 / 1024).toFixed(2)}MB. It will be compressed. Continue?`)) {
+                return;
+            }
         }
         
         let price = null;
@@ -270,14 +340,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        const reader = new FileReader();
-        reader.onload = async function(event) {
-            const imageBase64 = event.target.result;
-            
+        compressImage(imageFile, 1024, 0.8).then(compressedBase64 => {
             try {
                 const toppings = getToppings();
                 
-                const response = await fetch('backend/foods.php', {
+                fetch('backend/foods.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -288,32 +355,50 @@ document.addEventListener('DOMContentLoaded', () => {
                         price, 
                         sizes: sizes,
                         toppings: toppings,
-                        image: imageBase64 
+                        image: compressedBase64 
                     })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.error || 'Failed to upload image. File may be too large.');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    if (result.success) {
+                        loadFoods();
+                        foodForm.reset();
+                        hasSizesCheckbox.checked = false;
+                        singlePriceSection.style.display = 'block';
+                        sizePriceSection.style.display = 'none';
+                        priceInput.setAttribute('required', 'required');
+                        priceSmallInput.removeAttribute('required');
+                        priceLargeInput.removeAttribute('required');
+                        toppingsContainer.innerHTML = '';
+                        toppingCount = 0;
+                        if (fileUploadText && fileUploadHint) {
+                            fileUploadText.textContent = 'Choose an image file';
+                            fileUploadHint.textContent = 'PNG, JPG, or GIF up to 5MB';
+                            fileUploadText.style.color = '#2196F3';
+                        }
+                    } else {
+                        alert("Failed to add food item: " + (result.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error adding food:', error);
+                    alert("Failed to add food item: " + error.message);
                 });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    loadFoods();
-                    foodForm.reset();
-                    hasSizesCheckbox.checked = false;
-                    singlePriceSection.style.display = 'block';
-                    sizePriceSection.style.display = 'none';
-                    priceInput.setAttribute('required', 'required');
-                    priceSmallInput.removeAttribute('required');
-                    priceLargeInput.removeAttribute('required');
-                    toppingsContainer.innerHTML = '';
-                    toppingCount = 0;
-                } else {
-                    alert("Failed to add food item: " + (result.error || 'Unknown error'));
-                }
             } catch (error) {
-                console.error('Error adding food:', error);
-                alert("Failed to add food item");
+                console.error('Error processing food item:', error);
+                alert("Failed to add food item: " + error.message);
             }
-        };
-        reader.readAsDataURL(imageFile);
+        }).catch(error => {
+            console.error('Error compressing image:', error);
+            alert("Failed to process image: " + error.message);
+        });
     });
 
     function displayFoods() {
@@ -493,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${order.status === "pending" ? `<button onclick="updateOrderStatus(${order.id}, 'ready')">Mark Ready</button>` : ""}
                         ${order.status === "ready" ? `<button onclick="updateOrderStatus(${order.id}, 'completed')">Mark Completed</button>` : ""}
                         ${order.status !== "cancelled" && order.status !== "completed" ? `<button class="cancel-btn" onclick="cancelOrder(${order.id})">Cancel Order</button>` : ""}
-                        <button class="pdf-receipt-btn" onclick="generatePDFReceipt(${order.id})" style="background: #4CAF50 !important; color: white !important; padding: 4px 10px !important; font-size: 11px !important; border: none !important; border-radius: 3px !important; cursor: pointer !important; font-weight: 600 !important; transition: all 0.3s ease !important; min-width: 100px !important; text-align: center !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-top: 8px !important;">📄 Generate PDF</button>
+                        <button class="pdf-receipt-btn" onclick="generatePDFReceipt(${order.id})" style="background: #4CAF50 !important; color: white !important; padding: 4px 10px !important; font-size: 11px !important; border: none !important; border-radius: 3px !important; cursor: pointer !important; font-weight: 600 !important; transition: all 0.3s ease !important; min-width: 140px !important; text-align: center !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-top: 8px !important;">📄 Generate Receipt</button>
                         <button class="delete-btn" onclick="deleteOrder(${order.id})" style="background: #D32F2F !important; color: white !important; padding: 4px 10px !important; font-size: 11px !important; border: none !important; border-radius: 3px !important; cursor: pointer !important; font-weight: 600 !important; transition: all 0.3s ease !important; min-width: 80px !important; text-align: center !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-top: 8px !important;">Delete Order</button>
                     </div>
                 `;
@@ -520,6 +605,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             
             if (result.success) {
+                // If order is marked as ready, automatically generate receipt
+                if (newStatus === 'ready') {
+                    // Show confirmation that receipt is being generated
+                    const confirmGenerate = confirm('Order marked as ready! Would you like to automatically generate the receipt for the customer?');
+                    if (confirmGenerate) {
+                        // Open receipt in new tab
+                        window.open(`backend/generate_receipt.php?order_id=${orderId}&autoprint=1`, '_blank');
+                        alert('Receipt generated! The customer can now view their detailed receipt.');
+                    }
+                }
                 loadOrders();
             } else {
                 alert("Failed to update order status");

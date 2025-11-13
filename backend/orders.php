@@ -68,7 +68,20 @@ switch($method) {
         break;
         
     case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid JSON: ' . json_last_error_msg()]);
+            exit;
+        }
+        
+        if ($data === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid request data']);
+            exit;
+        }
         
         $items = $data['items'] ?? [];
         $customerName = $data['customer_name'] ?? 'Anonymous';
@@ -111,6 +124,22 @@ switch($method) {
             
             $stmt = $pdo->prepare("INSERT INTO order_items (order_id, food_id, quantity, price, size, toppings) VALUES (?, ?, ?, ?, ?, ?)");
             foreach ($items as $item) {
+                if (!isset($item['food_id']) || $item['food_id'] === null) {
+                    throw new Exception('Missing food_id in order item');
+                }
+                if (!isset($item['quantity']) || $item['quantity'] <= 0) {
+                    throw new Exception('Invalid quantity in order item');
+                }
+                if (!isset($item['price']) || $item['price'] < 0) {
+                    throw new Exception('Invalid price in order item');
+                }
+                
+                $checkFood = $pdo->prepare("SELECT id FROM foods WHERE id = ?");
+                $checkFood->execute([$item['food_id']]);
+                if ($checkFood->rowCount() === 0) {
+                    throw new Exception('Food item with id ' . $item['food_id'] . ' not found');
+                }
+                
                 $size = $item['size'] ?? null;
                 $toppings = $item['toppings'] ?? null;
                 $stmt->execute([$orderId, $item['food_id'], $item['quantity'], $item['price'], $size, $toppings]);
@@ -122,7 +151,7 @@ switch($method) {
         } catch (Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(['error' => 'Failed to create order']);
+            echo json_encode(['error' => 'Failed to create order: ' . $e->getMessage()]);
         }
         break;
         

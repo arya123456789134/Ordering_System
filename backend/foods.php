@@ -22,7 +22,24 @@ switch($method) {
         break;
         
     case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            http_response_code(400);
+            $errorMsg = 'Invalid JSON: ' . json_last_error_msg();
+            if (strlen($rawInput) > 50 * 1024 * 1024) {
+                $errorMsg = 'Image file too large. Please compress the image before uploading. Maximum size: 50MB';
+            }
+            echo json_encode(['error' => $errorMsg]);
+            exit;
+        }
+        
+        if ($data === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid request data']);
+            exit;
+        }
         
         $name = $data['name'] ?? '';
         $category = $data['category'] ?? '';
@@ -30,6 +47,12 @@ switch($method) {
         $sizes = $data['sizes'] ?? null;
         $toppings = $data['toppings'] ?? null;
         $image = $data['image'] ?? '';
+        
+        if (!empty($image) && strlen($image) > 50 * 1024 * 1024) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Image file too large. Please use a smaller image or compress it before uploading.']);
+            exit;
+        }
         
         if (empty($name) || empty($category)) {
             http_response_code(400);
